@@ -1,36 +1,105 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Angles Studio — Photography website & booking platform
 
-## Getting Started
+Premium marketing site and **Snappr-style booking flow** for a solo photographer: multi-vertical positioning (automotive, dealerships, restaurants, events, commercial), portfolio with filters and lightbox, structured pricing, Supabase persistence, Stripe deposits, Cloudinary reference uploads, and Resend confirmations.
 
-First, run the development server:
+## Stack
+
+- **Next.js 16** (App Router) + **TypeScript** + **Tailwind CSS v4**
+- **shadcn/ui** (Base UI primitives) + **Framer Motion**
+- **Supabase** (Postgres, Auth, RLS)
+- **Stripe** Checkout (deposit) + webhook → `payments` + `bookings.deposit_paid`
+- **Cloudinary** (server upload for booking references)
+- **Resend** (client + internal notification emails)
+
+## Quick start
 
 ```bash
+cd angles.inc
+cp .env.example .env.local
+npm install
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Open [http://localhost:3000](http://localhost:3000).
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+> **Note:** If you have another `package-lock.json` above this folder, Next may warn about the workspace root. Running commands from **this** directory keeps the project self-contained.
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## Environment variables
 
-## Learn More
+Copy `.env.example` to `.env.local` and fill in:
 
-To learn more about Next.js, take a look at the following resources:
+| Variable | Purpose |
+|----------|---------|
+| `NEXT_PUBLIC_SITE_URL` | Canonical URL (metadata, Stripe redirects) |
+| `NEXT_PUBLIC_SUPABASE_URL` / `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Public data + booking/contact inserts |
+| `SUPABASE_SERVICE_ROLE_KEY` | **Server only** — Stripe webhook updates |
+| `STRIPE_SECRET_KEY` / `STRIPE_WEBHOOK_SECRET` / `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY` | Deposits |
+| `RESEND_API_KEY` / `RESEND_FROM_EMAIL` | Transactional email |
+| `CLOUDINARY_*` / `NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME` | Reference uploads + optional `CloudinaryImage` |
+| `ADMIN_EMAIL` | Optional — if set, only this email may open `/admin` (middleware); still require `profiles.role = admin` |
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+Without Supabase, **marketing pages** use built-in static fallbacks. **Booking** requires Supabase to persist rows.
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+## Supabase setup
 
-## Deploy on Vercel
+1. Create a project at [supabase.com](https://supabase.com).
+2. Run the SQL in `supabase/migrations/20260404000000_initial.sql` (SQL editor or CLI).
+3. Run `supabase/seed.sql` for demo services, packages, portfolio, testimonials, and a sample availability block.
+4. **Auth:** Enable Email provider. Create a user, then promote in SQL:
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+   ```sql
+   update public.profiles
+   set role = 'admin'
+   where email = 'you@example.com';
+   ```
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+5. If your Postgres version errors on `execute function` in triggers, try `execute procedure` for `handle_new_user` / `set_updated_at` (depends on PG minor version).
+
+## Stripe webhook
+
+- Endpoint: `POST /api/stripe/webhook`
+- Events: at minimum `checkout.session.completed`
+- Use the signing secret as `STRIPE_WEBHOOK_SECRET`
+- Webhook handler uses **service role** to mark `deposit_paid` and insert `payments`
+
+## Project structure (high level)
+
+```
+app/
+  (site)/          # Public site (nav + footer)
+  admin/           # Login + protected dashboard (route group)
+  api/             # Stripe webhook, upload reference
+actions/           # Server Actions (booking, contact, admin)
+components/        # Layout, marketing, booking wizard, admin tables
+lib/               # Supabase, Stripe, Resend, Cloudinary, data helpers, Zod
+types/             # Shared TypeScript models
+supabase/          # migrations + seed
+```
+
+## Customization
+
+- **Brand & copy:** `lib/site-config.ts`
+- **Service page content & portfolio tab map:** `lib/constants/services.ts`
+- **Offline package matrix (matches seed):** `lib/constants/booking-packages.ts`
+
+## Production checklist
+
+- [ ] All env vars in hosting (Vercel, etc.)
+- [ ] `NEXT_PUBLIC_SITE_URL` matches production domain
+- [ ] Stripe live keys + webhook URL
+- [ ] Resend domain verification
+- [ ] Supabase RLS reviewed; service role never exposed to client
+- [ ] Replace Unsplash placeholders with Cloudinary or your CDN URLs in DB
+
+## Scripts
+
+```bash
+npm run dev      # Development server
+npm run build    # Production build
+npm run start    # Start production server
+npm run lint     # ESLint
+```
+
+## License
+
+Private / your usage — adjust as needed.
