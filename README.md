@@ -1,4 +1,4 @@
-# Angles Studio — Photography website & booking platform
+# Angles Inc. — Photography website & booking platform
 
 Premium marketing site and **Snappr-style booking flow** for a solo photographer: multi-vertical positioning (automotive, dealerships, restaurants, events, commercial), portfolio with filters and lightbox, structured pricing, Supabase persistence, Stripe deposits, Cloudinary reference uploads, and Resend confirmations.
 
